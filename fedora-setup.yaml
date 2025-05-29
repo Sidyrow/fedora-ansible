@@ -1,0 +1,178 @@
+---
+- name: Fedora Minimal + Qtile Setup
+  hosts: localhost
+  become: true
+  vars_files:
+    - vars.yml
+
+  tasks:
+
+    - name: Atualizar o sistema
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+    - name: Instalar RPM Fusion
+      shell: |
+        dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+                       https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+
+    - name: Instalar repositórios adicionais do Fedora
+      dnf:
+        name: fedora-workstation-repositories
+        state: present
+
+    - name: Habilitar repositório do Google Chrome
+      command: dnf config-manager --set-enabled google-chrome
+
+    - name: Instalar drivers e codecs (NVIDIA)
+      block:
+        - name: Instalar drivers da NVIDIA e CUDA
+          dnf:
+            name:
+              - akmod-nvidia
+              - xorg-x11-drv-nvidia-cuda
+              - xorg-x11-drv-nvidia-cuda-libs
+              - nvidia-vaapi-driver
+            state: present
+
+        - name: Substituir ffmpeg-free por ffmpeg completo
+          command: dnf swap -y ffmpeg-free ffmpeg --allowerasing
+
+        - name: Atualizar grupo Multimedia
+          command: >
+            dnf groupupdate -y multimedia
+            --setop=install_weak_deps=False
+            --exclude=PackageKit-gstreamer-plugin
+
+        - name: Atualizar grupo Sound and Video
+          command: dnf groupupdate -y sound-and-video
+
+        - name: Pausar após instalação dos drivers
+          debug:
+            msg: |
+              Reboot necessário após instalação da NVIDIA. Edite vars.yml e defina `skip_nvidia_setup: true`
+              para continuar após reiniciar.
+          failed_when: true
+      when: not skip_nvidia_setup
+
+    - name: Instalar Xorg e ferramentas base
+      dnf:
+        name:
+          - "@base-x"
+          - xorg-x11-server-Xorg
+          - xorg-x11-drv-evdev
+          - xorg-x11-drv-libinput
+          - xset
+          - xrandr
+          - xbacklight
+        state: present
+
+    - name: Instalar dependências para Qtile via Git
+      dnf:
+        name:
+          - git
+          - python3-pip
+          - cairo-devel
+          - gobject-introspection-devel
+          - libev-devel
+          - xcb-util-devel
+          - xcb-util-keysyms-devel
+          - xcb-util-wm-devel
+          - xcb-util-xrm-devel
+          - libffi-devel
+          - python3-cairocffi
+          - python3-xcffib
+        state: present
+
+    - name: Instalar Google Chrome
+      dnf:
+        name: google-chrome-stable
+        state: present
+
+    - name: Clonar repositório do Qtile
+      git:
+        repo: https://github.com/qtile/qtile.git
+        dest: /opt/qtile
+        version: master
+
+    - name: Instalar Qtile via pip
+      pip:
+        chdir: /opt/qtile
+        requirements: /opt/qtile/requirements.txt
+        editable: true
+
+    - name: Criar ~/.xinitrc com exec qtile start
+      copy:
+        dest: "{{ ansible_env.HOME }}/.xinitrc"
+        content: "exec qtile start\n"
+        owner: "{{ ansible_env.USER }}"
+        mode: '0644'
+
+    - name: Instalar utilitários e apps multimídia
+      dnf:
+        name:
+          - zathura
+          - zathura-pdf-poppler
+          - imv
+          - pipewire
+          - wireplumber
+          - pavucontrol
+          - alsa-utils
+          - vlc
+          - firefox
+          - curl
+          - cabextract
+          - xorg-x11-font-utils
+          - fontconfig
+          - msttcorefonts-fonts
+          - gvfs
+          - gvfs-mtp
+          - udiskie
+          - neovim
+          - unzip
+          - wget
+          - thunar
+          - thunar-volman
+          - thunar-archive-plugin
+          - tumbler
+          - xfce4-thumbnailers
+          - alacritty
+          - p7zip
+          - vim
+          - noto-fonts-cjk
+          - noto-fonts-emoji
+          - dejavu-sans-mono-fonts
+        state: present
+
+    - name: Criar diretório de fontes nerd
+      file:
+        path: "/usr/share/fonts/{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - Iosevka
+        - JetBrainsMono
+        - RobotoMono
+        - NerdFontsSymbolsOnly
+        - UbuntuMono
+        - UbuntuSans
+        - FantasqueSansMono
+
+    - name: Baixar e extrair Nerd Fonts
+      unarchive:
+        src: "{{ item.url }}"
+        dest: "/usr/share/fonts/{{ item.dir }}"
+        remote_src: yes
+      loop:
+        - { url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/Iosevka.zip", dir: "Iosevka" }
+        - { url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip", dir: "JetBrainsMono" }
+        - { url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/RobotoMono.zip", dir: "RobotoMono" }
+        - { url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/NerdFontsSymbolsOnly.zip", dir: "NerdFontsSymbolsOnly" }
+        - { url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/UbuntuMono.zip", dir: "UbuntuMono" }
+        - { url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/UbuntuSans.zip", dir: "UbuntuSans" }
+        - { url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/FantasqueSansMono.zip", dir: "FantasqueSansMono" }
+
+    - name: Atualizar cache de fontes
+      command: fc-cache -fv
