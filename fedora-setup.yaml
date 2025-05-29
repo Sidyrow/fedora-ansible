@@ -23,9 +23,6 @@
         name: fedora-workstation-repositories
         state: present
 
-    - name: Habilitar repositório do Google Chrome
-      command: dnf config-manager --set-enabled google-chrome
-
     - name: Instalar drivers e codecs (NVIDIA)
       block:
         - name: Instalar drivers da NVIDIA e CUDA
@@ -89,6 +86,7 @@
     - name: Instalar Google Chrome
       dnf:
         name: google-chrome-stable
+        enablerepo: google-chrome
         state: present
 
     - name: Clonar repositório do Qtile
@@ -98,10 +96,9 @@
         version: master
 
     - name: Instalar Qtile via pip
-      pip:
+      command: pip install .
+      args:
         chdir: /opt/qtile
-        requirements: /opt/qtile/requirements.txt
-        editable: true
 
     - name: Criar ~/.xinitrc com exec qtile start
       copy:
@@ -126,7 +123,6 @@
           - cabextract
           - xorg-x11-font-utils
           - fontconfig
-          - msttcorefonts-fonts
           - gvfs
           - gvfs-mtp
           - udiskie
@@ -137,12 +133,9 @@
           - thunar-volman
           - thunar-archive-plugin
           - tumbler
-          - xfce4-thumbnailers
           - alacritty
           - p7zip
           - vim
-          - noto-fonts-cjk
-          - noto-fonts-emoji
           - dejavu-sans-mono-fonts
         state: present
 
