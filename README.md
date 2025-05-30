@@ -1,2 +1,3 @@
 # fedora-ansible
-respositorio para teste de automação do Fedora netinsall
+
+Respositorio para testar automação do `Fedora 42` netinsall
