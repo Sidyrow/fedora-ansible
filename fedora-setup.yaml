@@ -1,5 +1,5 @@
 ---
-- name: Fedora Minimal + Qtile Setup
+- name: Fedora NetInstall Setup 1
   hosts: localhost
   become: true
   vars_files:
@@ -13,6 +13,14 @@
         state: latest
         update_cache: yes
 
+    - name: Install terminus console fonts
+      dnf:
+        name: terminus-fonts-console
+        state: present
+
+    - name: Setup terminus font
+      command: setfont ter-118n
+      
     - name: Instalar RPM Fusion
       shell: |
         dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
@@ -89,22 +97,45 @@
         enablerepo: google-chrome
         state: present
 
+    - name: Configurar nome do usuário Git global
+      git_config:
+        name: user.name
+        scope: global
+        value: "{{ my_user }}"
+      become: false
+
+    - name: Configurar email do usuário Git global
+      git_config:
+        name: user.email
+        scope: global
+        value: "{{ my_email }}"
+      become: false
+
+    - name: Configurar editor padrão do Git Global
+      git_config:
+        name: core.editor
+        scope: global
+        value: vim
+      become: false
+    
     - name: Clonar repositório do Qtile
       git:
         repo: https://github.com/qtile/qtile.git
-        dest: /opt/qtile
+        dest: /home/"{{ my_user }}"/qtile
         version: master
+      become: false
 
-    - name: Instalar Qtile via pip
-      command: pip install .
+    - name: Instalar Qtile via pip (local user)
+      command: pip install --break-system-packages .
       args:
-        chdir: /opt/qtile
+        chdir: /home/"{{ my_user }}"/qtile
+      become: false
 
     - name: Criar ~/.xinitrc com exec qtile start
       copy:
-        dest: "{{ ansible_env.HOME }}/.xinitrc"
+        dest: "/home/{{ my_user }}/.xinitrc"
         content: "exec qtile start\n"
-        owner: "{{ ansible_env.USER }}"
+        owner: "{{ my_user }}"
         mode: '0644'
 
     - name: Instalar utilitários e apps multimídia
@@ -126,6 +157,8 @@
           - gvfs
           - gvfs-mtp
           - udiskie
+          - fish
+          - tmux
           - neovim
           - unzip
           - wget
@@ -139,6 +172,10 @@
           - dejavu-sans-mono-fonts
         state: present
 
+    # Install fonts
+    - name: Install MS fonts
+      command: dnf install -y https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
+            
     - name: Criar diretório de fontes nerd
       file:
         path: "/usr/share/fonts/{{ item }}"
@@ -169,3 +206,33 @@
 
     - name: Atualizar cache de fontes
       command: fc-cache -fv
+
+    # Docker install
+    - name: Enable dnf config-manager
+      dnf:
+        name: dnf-plugins-core
+        state: present
+
+    - name: Set up docker repository
+      command: dnf-3 config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+
+    - name: Install docker
+      dnf: 
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Ensure group "docker" exists
+      group:
+        name: docker
+        state: present
+
+    - name: adding existing user "{{ my_user }}" to group sudo
+      user:
+        name: "{{ my_user }}"
+        groups: sudo,docker
+        append: yes
