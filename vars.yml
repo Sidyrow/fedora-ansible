@@ -1,0 +1,3 @@
+skip_nvidia_setup: false
+my_user: "name"
+my_email: "my@email.com"
