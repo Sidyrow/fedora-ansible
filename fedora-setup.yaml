@@ -46,13 +46,10 @@
           command: dnf swap -y ffmpeg-free ffmpeg --allowerasing
 
         - name: Atualizar grupo Multimedia
-          command: >
-            dnf groupupdate -y multimedia
-            --setop=install_weak_deps=False
-            --exclude=PackageKit-gstreamer-plugin
+          shell: dnf group install -y multimedia --exclude=PackageKit-gstreamer-plugin
 
         - name: Atualizar grupo Sound and Video
-          command: dnf groupupdate -y sound-and-video
+          command: dnf group install -y sound-and-video
 
         - name: H/W Video Decoding with VA-API
           dnf:
@@ -152,6 +149,7 @@
           - zathura
           - zathura-pdf-poppler
           - imv
+          - rofi
           - pipewire
           - wireplumber
           - pavucontrol
