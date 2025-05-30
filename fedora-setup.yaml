@@ -54,6 +54,14 @@
         - name: Atualizar grupo Sound and Video
           command: dnf groupupdate -y sound-and-video
 
+        - name: H/W Video Decoding with VA-API
+          dnf:
+            name: 
+              - ffmpeg-libs
+              - libva
+              - libva-utils
+            state: present
+
         - name: Pausar após instalação dos drivers
           debug:
             msg: |
@@ -121,14 +129,14 @@
     - name: Clonar repositório do Qtile
       git:
         repo: https://github.com/qtile/qtile.git
-        dest: /home/"{{ my_user }}"/qtile
+        dest: "/home/{{ my_user }}/qtile"
         version: master
       become: false
 
     - name: Instalar Qtile via pip (local user)
       command: pip install --break-system-packages .
       args:
-        chdir: /home/"{{ my_user }}"/qtile
+        chdir: "/home/{{ my_user }}/qtile"
       become: false
 
     - name: Criar ~/.xinitrc com exec qtile start
@@ -160,7 +168,6 @@
           - fish
           - tmux
           - neovim
-          - unzip
           - wget
           - thunar
           - thunar-volman
@@ -168,6 +175,9 @@
           - tumbler
           - alacritty
           - p7zip
+          - unzip 
+          - p7zip-plugins
+          - unrar
           - vim
           - dejavu-sans-mono-fonts
         state: present
@@ -234,5 +244,6 @@
     - name: adding existing user "{{ my_user }}" to group sudo
       user:
         name: "{{ my_user }}"
-        groups: sudo,docker
+        groups: docker
+        shell: /usr/bin/fish
         append: yes
